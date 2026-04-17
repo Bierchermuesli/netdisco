@@ -124,3 +124,27 @@ device_auth:
 #  - '127.0.0.0/8'
 #  - '::1'
 
+# label used for the 'device' dimension in all per-device metrics.
+# 'ip' is the default. set to 'dns' to use the device DNS name instead.
+# `````````````````````````````````````````````````````````````````````````````
+#metrics_device_label: 'ip'
+
+# enable PoE aggregate metrics (total across all devices). disabled by default.
+# `````````````````````````````````````````````````````````````````````````````
+#metrics_poe: true
+
+# per-device metrics - all disabled by default, enable as needed.
+# higher cardinality - may produce large output in big environments.
+# `````````````````````````````````````````````````````````````````````````````
+#metrics_poe_per_device: true          # PoE capacity/ports/power per device
+#metrics_ports_per_device: true        # port counts (total/up/down/admin-down) per device
+#metrics_macs_per_device: true         # active MAC entry count per device
+#metrics_poll_age_per_device: true     # seconds since last discover/macsuck/arpnip per device
+#metrics_job_duration_per_device: true # last job duration per device (within 24h, includes status label)
+#metrics_job_duration_actions:         # actions to include (default: all three)
+#  - discover
+#  - macsuck
+#  - arpnip
+#metrics_neighbors_per_device: true    # L2 neighbor count per device
+#metrics_vlans_per_device: true        # VLAN count per device
+
