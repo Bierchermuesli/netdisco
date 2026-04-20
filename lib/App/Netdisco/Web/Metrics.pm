@@ -441,25 +441,41 @@ get $metrics_path => sub {
     }
   }
 
-  # -- Per-device job duration (optional, metrics_job_duration_per_device: true)
+  # -- Per-device last job duration + timestamp (optional, metrics_job_duration_per_device: true)
   if (setting('metrics_job_duration_per_device')) {
     my $actions = setting('metrics_job_duration_actions') // [qw/discover macsuck arpnip/];
-    $output .= _header('netdisco_device_job_duration_seconds',
-      'Duration in seconds of the most recent job per device and action (within 24 hours)');
+    my %rows_by_tenant;
     foreach my $tenant (@tenants) {
-      my @rows = try {
+      $rows_by_tenant{$tenant} = [try {
         schema($tenant)->resultset('Virtual::DeviceJobDurations')->search({
-          rn      => 1,
-          action  => { -in => $actions },
-          started => { '>=' => \q|(now() - interval '24 hours')| },
+          rn     => 1,
+          action => { -in => $actions },
         })->hri->all;
-      } catch { () };
-      foreach my $row (@rows) {
+      } catch { () }];
+    }
+
+    $output .= _header('netdisco_device_last_job_duration_seconds',
+      'Duration in seconds of the most recent completed job per device and action');
+    foreach my $tenant (@tenants) {
+      foreach my $row (@{ $rows_by_tenant{$tenant} }) {
         next unless defined $row->{device} and defined $row->{duration};
         my $dev = $dev_label->($tenant, $row->{device});
         $output .= sprintf(
-          qq(netdisco_device_job_duration_seconds{tenant="%s",device="%s",action="%s",status="%s"} %.3f\n),
+          qq(netdisco_device_last_job_duration_seconds{tenant="%s",device="%s",action="%s",status="%s"} %.3f\n),
           $tenant, $dev, $row->{action}, $row->{status}, $row->{duration});
+      }
+    }
+    $output .= "\n";
+
+    $output .= _header('netdisco_device_last_job_timestamp_seconds',
+      'Unix timestamp of when the most recent completed job started per device and action');
+    foreach my $tenant (@tenants) {
+      foreach my $row (@{ $rows_by_tenant{$tenant} }) {
+        next unless defined $row->{device} and defined $row->{started_epoch};
+        my $dev = $dev_label->($tenant, $row->{device});
+        $output .= sprintf(
+          qq(netdisco_device_last_job_timestamp_seconds{tenant="%s",device="%s",action="%s",status="%s"} %d\n),
+          $tenant, $dev, $row->{action}, $row->{status}, $row->{started_epoch});
       }
     }
     $output .= "\n";

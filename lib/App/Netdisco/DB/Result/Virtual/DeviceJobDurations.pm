@@ -10,7 +10,7 @@ __PACKAGE__->table_class('DBIx::Class::ResultSource::View');
 __PACKAGE__->table('device_job_durations');
 __PACKAGE__->result_source_instance->is_virtual(1);
 __PACKAGE__->result_source_instance->view_definition(<<'ENDSQL');
-SELECT device, action, status, started, duration, rn
+SELECT device, action, status, started, floor(extract(epoch FROM started)) AS started_epoch, duration, rn
 FROM (
   SELECT device,
          action,
@@ -26,12 +26,13 @@ FROM (
 ENDSQL
 
 __PACKAGE__->add_columns(
-  'device'   => { data_type => 'inet',    is_nullable => 1 },
-  'action'   => { data_type => 'text',    is_nullable => 1 },
-  'status'   => { data_type => 'text',    is_nullable => 1 },
-  'started'  => { data_type => 'timestamp', is_nullable => 1 },
-  'duration' => { data_type => 'numeric', is_nullable => 1 },
-  'rn'       => { data_type => 'integer', is_nullable => 1 },
+  'device'        => { data_type => 'inet',      is_nullable => 1 },
+  'action'        => { data_type => 'text',       is_nullable => 1 },
+  'status'        => { data_type => 'text',       is_nullable => 1 },
+  'started'       => { data_type => 'timestamp',  is_nullable => 1 },
+  'started_epoch' => { data_type => 'numeric',    is_nullable => 1 },
+  'duration'      => { data_type => 'numeric',    is_nullable => 1 },
+  'rn'            => { data_type => 'integer',    is_nullable => 1 },
 );
 
 1;
