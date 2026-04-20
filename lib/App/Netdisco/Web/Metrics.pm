@@ -451,7 +451,7 @@ get $metrics_path => sub {
           rn     => 1,
           action => { -in => $actions },
         })->hri->all;
-      } catch { warn "DeviceJobDurations query failed: $_"; () }];
+      } catch { () }];
     }
 
     $output .= _header('netdisco_device_last_job_duration_seconds',
