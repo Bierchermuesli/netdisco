@@ -8,6 +8,75 @@ use Dancer::Plugin::Auth::Extensible;
 use App::Netdisco::JobQueue 'jq_insert';
 use Try::Tiny;
 
+my @DEVICE_FIELDS = qw/ip dns name vendor model os os_ver location last_discover/;
+
+swagger_path {
+  tags => ['Objects'],
+  path => (setting('api_base') || '').'/object/devices',
+  description => 'Returns list of all known devices',
+  parameters => [
+    q => {
+      in => 'query',
+      description => 'Filter by IP, dns, or name (substring match)',
+      required => 0,
+    },
+    fields => {
+      in => 'query',
+      description => 'Comma-separated list of fields to return. Defaults to: ip,dns,name,vendor,model,os,os_ver,location,last_discover. Use "all" for every column. Use "snmp_auth_tag" to include the cached SNMP auth tag.',
+      required => 0,
+    },
+    limit => {
+      in => 'query',
+      description => 'Maximum number of devices to return. Default: all.',
+      required => 0,
+    },
+    offset => {
+      in => 'query',
+      description => 'Number of devices to skip (for paging). Default: 0.',
+      required => 0,
+    },
+  ],
+  responses => { default => {} },
+}, get '/api/v1/object/devices' => require_role api => sub {
+  my $q      = params->{q}      || '';
+  my $fields = params->{fields} || '';
+  my $limit  = params->{limit}  || undef;
+  my $offset = params->{offset} || 0;
+
+  my @cols = $fields eq 'all'  ? ()
+           : $fields           ? split(/\s*,\s*/, $fields)
+           :                     @DEVICE_FIELDS;
+
+  my $want_tag = grep { $_ eq 'snmp_auth_tag' } @cols;
+  @cols = grep { $_ ne 'snmp_auth_tag' } @cols;
+
+  my %search = ();
+  if ($q) {
+    $search{'-or'} = [
+      { 'me.ip'   => { 'like', "%$q%" } },
+      { 'me.dns'  => { 'like', "%$q%" } },
+      { 'me.name' => { 'like', "%$q%" } },
+    ];
+  }
+
+  my %attrs = ( order_by => 'me.dns' );
+  $attrs{columns} = \@cols if @cols;
+  $attrs{rows}   = int($limit)  if $limit;
+  $attrs{offset} = int($offset) if $offset;
+
+  if ($want_tag) {
+    $attrs{join} = 'community';
+    push @{ $attrs{'+columns'} }, { snmp_auth_tag => 'community.snmp_auth_tag_read' };
+  }
+
+  my @devices = try {
+    schema(vars->{'tenant'})->resultset('Device')
+      ->search(\%search, \%attrs)->hri->all;
+  } catch { () };
+
+  return to_json \@devices;
+};
+
 swagger_path {
   tags => ['Objects'],
   path => (setting('api_base') || '').'/object/device/{ip}',
