@@ -436,6 +436,9 @@
                 <a href="[% search_node | none %]&q=[% neighbor_mac | uri %]" class="text-muted">[% neighbor_mac | html_entity %]</a>
               [% END %]
             <br/>
+            [% IF (row.remote_is_wap OR row.remote_is_phone) AND row.remote_type %]
+              <span class="text-muted">[% row.remote_type | html_entity %]</span><br/>
+            [% END %]
             [% IF params.n_inventory and row.remote_inventory %]
               [% row.remote_inventory | html_entity %]<br/>
             [% END %]

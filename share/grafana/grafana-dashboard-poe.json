@@ -1,0 +1,384 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_PROMETHEUS",
+      "label": "Prometheus",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "prometheus",
+      "pluginName": "Prometheus"
+    }
+  ],
+  "__requires": [
+    { "type": "grafana", "id": "grafana", "name": "Grafana", "version": "10.0.0" },
+    { "type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0" },
+    { "type": "panel", "id": "stat", "name": "Stat", "version": "" },
+    { "type": "panel", "id": "gauge", "name": "Gauge", "version": "" },
+    { "type": "panel", "id": "piechart", "name": "Pie chart", "version": "" },
+    { "type": "panel", "id": "bargauge", "name": "Bar gauge", "version": "" },
+    { "type": "panel", "id": "table", "name": "Table", "version": "" }
+  ],
+  "annotations": { "list": [] },
+  "description": "Netdisco PoE (Power over Ethernet) summary dashboard",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100,
+      "title": "Global Summary",
+      "type": "row"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] },
+          "unit": "short",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
+      "id": 1,
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "title": "PoE Modules",
+      "type": "stat",
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "sum(netdisco_poe_modules{tenant=~\"$tenant\"})", "legendFormat": "modules", "instant": true }]
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] },
+          "unit": "watt",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
+      "id": 2,
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "title": "Total PoE Capacity",
+      "type": "stat",
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "sum(netdisco_poe_power_capacity_watts{tenant=~\"$tenant\"})", "legendFormat": "capacity", "instant": true }]
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null },
+            { "color": "yellow", "value": 70 },
+            { "color": "red", "value": 90 }
+          ]},
+          "unit": "percent",
+          "min": 0, "max": 100,
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
+      "id": 3,
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "title": "Power Utilisation (delivering / capacity)",
+      "type": "stat",
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "100 * sum(netdisco_poe_power_delivering_watts{tenant=~\"$tenant\"}) / sum(netdisco_poe_power_capacity_watts{tenant=~\"$tenant\"})", "legendFormat": "utilisation", "instant": true }]
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] },
+          "unit": "watt",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 1 },
+      "id": 4,
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "title": "Power Delivering",
+      "type": "stat",
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "sum(netdisco_poe_power_delivering_watts{tenant=~\"$tenant\"})", "legendFormat": "delivering", "instant": true }]
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] },
+          "unit": "watt",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 1 },
+      "id": 5,
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "title": "Power Committed",
+      "type": "stat",
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "sum(netdisco_poe_power_committed_watts{tenant=~\"$tenant\"})", "legendFormat": "committed", "instant": true }]
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "red", "value": null },
+            { "color": "green", "value": 1 }
+          ]},
+          "unit": "short",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 1 },
+      "id": 6,
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "title": "Ports with Errors",
+      "type": "stat",
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "sum(netdisco_poe_ports_errored{tenant=~\"$tenant\"})", "legendFormat": "errored", "instant": true }]
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "id": 101,
+      "title": "Port State Breakdown",
+      "type": "row"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "unit": "short", "mappings": [] },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "powered" },  "properties": [{ "id": "color", "value": { "fixedColor": "green",  "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "disabled" }, "properties": [{ "id": "color", "value": { "fixedColor": "yellow", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "errored" },  "properties": [{ "id": "color", "value": { "fixedColor": "red",    "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "idle" },     "properties": [{ "id": "color", "value": { "fixedColor": "blue",   "mode": "fixed" } }] }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 6 },
+      "id": 10,
+      "options": { "displayLabels": ["percent"], "legend": { "displayMode": "table", "placement": "right", "values": ["value"] }, "pieType": "donut" },
+      "title": "PoE Port States",
+      "type": "piechart",
+      "targets": [
+        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "sum(netdisco_poe_ports_powered{tenant=~\"$tenant\"})",  "legendFormat": "powered",  "instant": true },
+        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "sum(netdisco_poe_ports_disabled{tenant=~\"$tenant\"})", "legendFormat": "disabled", "instant": true },
+        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "sum(netdisco_poe_ports_errored{tenant=~\"$tenant\"})",  "legendFormat": "errored",  "instant": true },
+        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "sum(netdisco_poe_ports_capable{tenant=~\"$tenant\"}) - sum(netdisco_poe_ports_powered{tenant=~\"$tenant\"}) - sum(netdisco_poe_ports_disabled{tenant=~\"$tenant\"}) - sum(netdisco_poe_ports_errored{tenant=~\"$tenant\"})", "legendFormat": "idle", "instant": true }
+      ]
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "unit": "short", "mappings": [] }
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 6 },
+      "id": 11,
+      "options": { "displayLabels": ["percent"], "legend": { "displayMode": "table", "placement": "right", "values": ["value"] }, "pieType": "donut" },
+      "title": "PoE Port Classes",
+      "type": "piechart",
+      "targets": [
+        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "sum by(class) (netdisco_poe_ports_by_class{tenant=~\"$tenant\"})", "legendFormat": "{{class}}", "instant": true }
+      ]
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "unit": "short", "mappings": [] }
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 6 },
+      "id": 12,
+      "options": { "displayLabels": ["percent"], "legend": { "displayMode": "table", "placement": "right", "values": ["value"] }, "pieType": "donut" },
+      "title": "Module Status",
+      "type": "piechart",
+      "targets": [
+        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "sum by(status) (netdisco_poe_modules_by_status{tenant=~\"$tenant\"})", "legendFormat": "{{status}}", "instant": true }
+      ]
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 },
+      "id": 102,
+      "title": "Per-Device Breakdown",
+      "type": "row"
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "percentage", "steps": [
+            { "color": "green", "value": null },
+            { "color": "yellow", "value": 70 },
+            { "color": "red", "value": 90 }
+          ]},
+          "unit": "watt",
+          "min": 0,
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 15 },
+      "id": 20,
+      "options": {
+        "displayMode": "gradient",
+        "minVizWidth": 0, "minVizHeight": 10,
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "showUnfilled": true,
+        "valueMode": "color"
+      },
+      "title": "Power Delivering per Device",
+      "type": "bargauge",
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "sort_desc(netdisco_poe_device_power_delivering_watts{tenant=~\"$tenant\"})", "legendFormat": "{{device}}", "instant": true }]
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "percentage", "steps": [
+            { "color": "green", "value": null },
+            { "color": "yellow", "value": 70 },
+            { "color": "red", "value": 90 }
+          ]},
+          "unit": "percentunit",
+          "min": 0, "max": 1,
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 15 },
+      "id": 21,
+      "options": {
+        "displayMode": "gradient",
+        "minVizWidth": 0, "minVizHeight": 10,
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "showUnfilled": true,
+        "valueMode": "color"
+      },
+      "title": "Power Utilisation per Device (delivering / capacity)",
+      "type": "bargauge",
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "sort_desc(netdisco_poe_device_power_delivering_watts{tenant=~\"$tenant\"} / netdisco_poe_device_power_capacity_watts{tenant=~\"$tenant\"})", "legendFormat": "{{device}}", "instant": true }]
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "mappings": [], "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "text", "value": null }] }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Capacity (W)" },   "properties": [{ "id": "unit", "value": "watt" }, { "id": "custom.width", "value": 110 }] },
+          { "matcher": { "id": "byName", "options": "Committed (W)" },  "properties": [{ "id": "unit", "value": "watt" }, { "id": "custom.width", "value": 110 }] },
+          { "matcher": { "id": "byName", "options": "Delivering (W)" }, "properties": [{ "id": "unit", "value": "watt" }, { "id": "custom.width", "value": 110 }] },
+          { "matcher": { "id": "byName", "options": "Util %" }, "properties": [
+            { "id": "unit", "value": "percent" },
+            { "id": "custom.width", "value": 80 },
+            { "id": "custom.displayMode", "value": "color-background" },
+            { "id": "thresholds", "value": { "mode": "absolute", "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 70 },
+              { "color": "red", "value": 90 }
+            ]}}
+          ]},
+          { "matcher": { "id": "byName", "options": "Errored" }, "properties": [
+            { "id": "custom.width", "value": 80 },
+            { "id": "custom.displayMode", "value": "color-background" },
+            { "id": "thresholds", "value": { "mode": "absolute", "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]}}
+          ]}
+        ]
+      },
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 25 },
+      "id": 30,
+      "options": { "footer": { "show": false }, "showHeader": true, "sortBy": [{ "desc": true, "displayName": "Delivering (W)" }] },
+      "title": "Per-Device PoE Table",
+      "transformations": [
+        { "id": "merge", "options": {} },
+        { "id": "organize", "options": {
+          "renameByName": {
+            "Value #A": "Capacity (W)",
+            "Value #B": "Ports Capable",
+            "Value #C": "Ports Powered",
+            "Value #D": "Ports Disabled",
+            "Value #E": "Errored",
+            "Value #F": "Committed (W)",
+            "Value #G": "Delivering (W)",
+            "Value #H": "Util %",
+            "device": "Device"
+          }
+        }}
+      ],
+      "type": "table",
+      "targets": [
+        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "netdisco_poe_device_power_capacity_watts{tenant=~\"$tenant\"}",                                                                                                                                          "legendFormat": "{{device}}", "instant": true, "refId": "A" },
+        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "netdisco_poe_device_ports_capable{tenant=~\"$tenant\"}",                                                                                                                                               "legendFormat": "{{device}}", "instant": true, "refId": "B" },
+        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "netdisco_poe_device_ports_powered{tenant=~\"$tenant\"}",                                                                                                                                              "legendFormat": "{{device}}", "instant": true, "refId": "C" },
+        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "netdisco_poe_device_ports_disabled{tenant=~\"$tenant\"}",                                                                                                                                             "legendFormat": "{{device}}", "instant": true, "refId": "D" },
+        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "netdisco_poe_device_ports_errored{tenant=~\"$tenant\"}",                                                                                                                                              "legendFormat": "{{device}}", "instant": true, "refId": "E" },
+        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "netdisco_poe_device_power_committed_watts{tenant=~\"$tenant\"}",                                                                                                                                      "legendFormat": "{{device}}", "instant": true, "refId": "F" },
+        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "netdisco_poe_device_power_delivering_watts{tenant=~\"$tenant\"}",                                                                                                                                     "legendFormat": "{{device}}", "instant": true, "refId": "G" },
+        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "100 * netdisco_poe_device_power_delivering_watts{tenant=~\"$tenant\"} / netdisco_poe_device_power_capacity_watts{tenant=~\"$tenant\"}",                                                               "legendFormat": "{{device}}", "instant": true, "refId": "H" }
+      ]
+    }
+
+  ],
+  "refresh": "5m",
+  "schemaVersion": 38,
+  "tags": ["netdisco", "poe"],
+  "templating": {
+    "list": [
+      {
+        "current": { "selected": false, "text": "All", "value": "$__all" },
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "definition": "label_values(netdisco_poe_modules, tenant)",
+        "hide": 0,
+        "includeAll": true,
+        "multi": false,
+        "name": "tenant",
+        "options": [],
+        "query": { "query": "label_values(netdisco_poe_modules, tenant)", "refId": "StandardVariableQuery" },
+        "refresh": 2,
+        "sort": 1,
+        "type": "query",
+        "label": "Tenant"
+      }
+    ]
+  },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Netdisco - PoE Summary",
+  "uid": "netdisco-poe-summary",
+  "version": 1
+}
