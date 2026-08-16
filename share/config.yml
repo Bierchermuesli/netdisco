@@ -675,6 +675,15 @@ field_protection:
   device:
     uptime: ['group:__ANY__']
     serial: ['group:__ANY__']
+hook_ignore_changes:
+  device:
+    - uptime
+    - last_discover
+    - num_ports
+  device_port:
+    - up
+    - up_admin
+    - lastchange
 devices_no: []
 devices_only: []
 discover_no: []

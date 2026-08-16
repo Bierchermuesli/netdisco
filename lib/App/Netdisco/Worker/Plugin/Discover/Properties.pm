@@ -212,6 +212,24 @@ register_worker({ phase => 'early', driver => 'snmp',
   # support for new_device Hook
   vars->{'new_device'} = 1 if not $device->in_storage;
 
+  # support for discover Hook - detect meaningful device-level changes
+  {
+    my $ignore = (setting('hook_ignore_changes') || {})->{'device'} || [];
+    my %ignore_field = map {($_ => 1)} @$ignore;
+    my %dirty = $device->get_dirty_columns;
+    my @changed = sort grep {not $ignore_field{$_}} keys %dirty;
+
+    if (scalar @changed) {
+        vars->{'device_changed'} = 1;
+        foreach my $field (@changed) {
+            debug sprintf ' [%s] hooks - device field %s changed: "%s" -> "%s"',
+              $device->ip, $field,
+              (defined $orig_device->{$field} ? $orig_device->{$field} : ''),
+              (defined $dirty{$field} ? $dirty{$field} : '');
+        }
+    }
+  }
+
   schema('netdisco')->txn_do(sub {
     if ($device->serial and setting('delete_duplicate_serials')) {
         my $gone = schema('netdisco')->resultset('Device')->search({
@@ -420,6 +438,31 @@ register_worker({ phase => 'early', driver => 'snmp',
       };
   }
 
+  # plausibility check: SNMP occasionally returns an empty ifAlias/i_name
+  # table without erroring (seen on Cisco and Fortigate). If every port
+  # previously had a name and this poll got none at all, distrust the walk
+  # and keep the last-known names rather than wipe them all in one go.
+  {
+      my %old_names = map {($_->{'port'} => $_->{'name'})}
+        $device->ports->search(undef, {columns => [qw/port name/]})->hri->all;
+
+      my $old_named = scalar grep {defined and length} values %old_names;
+      my $new_named = scalar grep {defined $_->{'name'} and length $_->{'name'}}
+                             values %deviceports;
+
+      if ($old_named and not $new_named) {
+          warning sprintf
+            ' [%s] interfaces - i_name/ifAlias walk came back empty for all ports'
+            .' but %d had one previously - assuming failed SNMP walk, keeping existing names',
+            $device->ip, $old_named;
+
+          foreach my $port (keys %deviceports) {
+              $deviceports{$port}->{name} = $old_names{$port}
+                if exists $old_names{$port};
+          }
+      }
+  }
+
   if (scalar @{ setting('ignore_deviceports') }) {
     my $port_map = {};
 
@@ -513,6 +556,56 @@ register_worker({ phase => 'early', driver => 'snmp',
 
   # update num_ports
   $device->num_ports( scalar values %deviceports );
+
+  # support for discover Hook - detect meaningful port-level changes
+  unless (vars->{'device_changed'}) {
+    my $ignore = (setting('hook_ignore_changes') || {})->{'device_port'} || [];
+    my %ignore_field = map {($_ => 1)} @$ignore;
+
+    # boolean columns: ->hri bypasses DBIC's column handling, so an
+    # existing row's true/false comes back as the driver's raw "1"/"0"
+    # while our freshly built %deviceports uses the literal 'true'/'false'
+    # strings - normalize both before comparing so this isn't a false positive
+    my %bool_field = map {($_ => 1)} qw/has_subinterfaces is_master/;
+    my $normalize_bool = sub {
+      my $val = shift;
+      return (defined $val and grep {$val eq $_} qw/1 t true/) ? 1 : 0;
+    };
+
+    my %existing_ports = map {($_->{'port'} => $_)}
+      $device->ports->search(undef, {columns => [qw/
+        port descr up up_admin mac speed speed_admin mtu name
+        duplex duplex_admin stp type vlan pvid lastchange
+        has_subinterfaces is_master slave_of
+      /]})->hri->all;
+
+    if (join("\0", sort keys %existing_ports) ne join("\0", sort keys %deviceports)) {
+        vars->{'device_changed'} = 1;
+        debug sprintf ' [%s] hooks - port set changed: had [%s], now [%s]',
+          $device->ip, (join ', ', sort keys %existing_ports),
+                       (join ', ', sort keys %deviceports);
+    }
+    else {
+        PORTDIFF: foreach my $port (sort keys %deviceports) {
+            my $old = $existing_ports{$port};
+            my $new = $deviceports{$port};
+            foreach my $field (sort keys %$new) {
+                next if $ignore_field{$field};
+                my $oldval = (defined $old->{$field} ? $old->{$field} : '');
+                my $newval = (defined $new->{$field} ? $new->{$field} : '');
+                if ($bool_field{$field}) {
+                    $oldval = $normalize_bool->($oldval);
+                    $newval = $normalize_bool->($newval);
+                }
+                next if $oldval eq $newval;
+                vars->{'device_changed'} = 1;
+                debug sprintf ' [%s] hooks - port %s field %s changed: "%s" -> "%s"',
+                  $device->ip, $port, $field, $oldval, $newval;
+                last PORTDIFF;
+            }
+        }
+    }
+  }
 
   # support for Hooks
   vars->{'hook_data'}->{'ports'} = [values %deviceports];
