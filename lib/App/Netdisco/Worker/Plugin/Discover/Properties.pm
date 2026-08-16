@@ -217,8 +217,13 @@ register_worker({ phase => 'early', driver => 'snmp',
     my $ignore = (setting('hook_ignore_changes') || {})->{'device'} || [];
     my %ignore_field = map {($_ => 1)} @$ignore;
     my %dirty = $device->get_dirty_columns;
-    vars->{'device_changed'} = 1
-      if scalar grep {not $ignore_field{$_}} keys %dirty;
+    my @changed = sort grep {not $ignore_field{$_}} keys %dirty;
+
+    if (scalar @changed) {
+        vars->{'device_changed'} = 1;
+        debug sprintf ' [%s] hooks - device fields changed: %s',
+          $device->ip, join(', ', @changed);
+    }
   }
 
   schema('netdisco')->txn_do(sub {
@@ -537,17 +542,22 @@ register_worker({ phase => 'early', driver => 'snmp',
 
     if (join("\0", sort keys %existing_ports) ne join("\0", sort keys %deviceports)) {
         vars->{'device_changed'} = 1;
+        debug sprintf ' [%s] hooks - port set changed: had [%s], now [%s]',
+          $device->ip, (join ', ', sort keys %existing_ports),
+                       (join ', ', sort keys %deviceports);
     }
     else {
-        PORTDIFF: foreach my $port (keys %deviceports) {
+        PORTDIFF: foreach my $port (sort keys %deviceports) {
             my $old = $existing_ports{$port};
             my $new = $deviceports{$port};
-            foreach my $field (keys %$new) {
+            foreach my $field (sort keys %$new) {
                 next if $ignore_field{$field};
                 my $oldval = (defined $old->{$field} ? $old->{$field} : '');
                 my $newval = (defined $new->{$field} ? $new->{$field} : '');
                 next if $oldval eq $newval;
                 vars->{'device_changed'} = 1;
+                debug sprintf ' [%s] hooks - port %s field %s changed: "%s" -> "%s"',
+                  $device->ip, $port, $field, $oldval, $newval;
                 last PORTDIFF;
             }
         }
