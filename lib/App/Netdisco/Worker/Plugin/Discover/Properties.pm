@@ -558,6 +558,16 @@ register_worker({ phase => 'early', driver => 'snmp',
     my $ignore = (setting('hook_ignore_changes') || {})->{'device_port'} || [];
     my %ignore_field = map {($_ => 1)} @$ignore;
 
+    # boolean columns: ->hri bypasses DBIC's column handling, so an
+    # existing row's true/false comes back as the driver's raw "1"/"0"
+    # while our freshly built %deviceports uses the literal 'true'/'false'
+    # strings - normalize both before comparing so this isn't a false positive
+    my %bool_field = map {($_ => 1)} qw/has_subinterfaces is_master/;
+    my $normalize_bool = sub {
+      my $val = shift;
+      return (defined $val and grep {$val eq $_} qw/1 t true/) ? 1 : 0;
+    };
+
     my %existing_ports = map {($_->{'port'} => $_)}
       $device->ports->search(undef, {columns => [qw/
         port descr up up_admin mac speed speed_admin mtu name
@@ -579,6 +589,10 @@ register_worker({ phase => 'early', driver => 'snmp',
                 next if $ignore_field{$field};
                 my $oldval = (defined $old->{$field} ? $old->{$field} : '');
                 my $newval = (defined $new->{$field} ? $new->{$field} : '');
+                if ($bool_field{$field}) {
+                    $oldval = $normalize_bool->($oldval);
+                    $newval = $normalize_bool->($newval);
+                }
                 next if $oldval eq $newval;
                 vars->{'device_changed'} = 1;
                 debug sprintf ' [%s] hooks - port %s field %s changed: "%s" -> "%s"',
