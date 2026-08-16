@@ -212,6 +212,15 @@ register_worker({ phase => 'early', driver => 'snmp',
   # support for new_device Hook
   vars->{'new_device'} = 1 if not $device->in_storage;
 
+  # support for discover Hook - detect meaningful device-level changes
+  {
+    my $ignore = (setting('hook_ignore_changes') || {})->{'device'} || [];
+    my %ignore_field = map {($_ => 1)} @$ignore;
+    my %dirty = $device->get_dirty_columns;
+    vars->{'device_changed'} = 1
+      if scalar grep {not $ignore_field{$_}} keys %dirty;
+  }
+
   schema('netdisco')->txn_do(sub {
     if ($device->serial and setting('delete_duplicate_serials')) {
         my $gone = schema('netdisco')->resultset('Device')->search({
@@ -513,6 +522,37 @@ register_worker({ phase => 'early', driver => 'snmp',
 
   # update num_ports
   $device->num_ports( scalar values %deviceports );
+
+  # support for discover Hook - detect meaningful port-level changes
+  unless (vars->{'device_changed'}) {
+    my $ignore = (setting('hook_ignore_changes') || {})->{'device_port'} || [];
+    my %ignore_field = map {($_ => 1)} @$ignore;
+
+    my %existing_ports = map {($_->{'port'} => $_)}
+      $device->ports->search(undef, {columns => [qw/
+        port descr up up_admin mac speed speed_admin mtu name
+        duplex duplex_admin stp type vlan pvid lastchange
+        has_subinterfaces is_master slave_of
+      /]})->hri->all;
+
+    if (join("\0", sort keys %existing_ports) ne join("\0", sort keys %deviceports)) {
+        vars->{'device_changed'} = 1;
+    }
+    else {
+        PORTDIFF: foreach my $port (keys %deviceports) {
+            my $old = $existing_ports{$port};
+            my $new = $deviceports{$port};
+            foreach my $field (keys %$new) {
+                next if $ignore_field{$field};
+                my $oldval = (defined $old->{$field} ? $old->{$field} : '');
+                my $newval = (defined $new->{$field} ? $new->{$field} : '');
+                next if $oldval eq $newval;
+                vars->{'device_changed'} = 1;
+                last PORTDIFF;
+            }
+        }
+    }
+  }
 
   # support for Hooks
   vars->{'hook_data'}->{'ports'} = [values %deviceports];
