@@ -221,8 +221,12 @@ register_worker({ phase => 'early', driver => 'snmp',
 
     if (scalar @changed) {
         vars->{'device_changed'} = 1;
-        debug sprintf ' [%s] hooks - device fields changed: %s',
-          $device->ip, join(', ', @changed);
+        foreach my $field (@changed) {
+            debug sprintf ' [%s] hooks - device field %s changed: "%s" -> "%s"',
+              $device->ip, $field,
+              (defined $orig_device->{$field} ? $orig_device->{$field} : ''),
+              (defined $dirty{$field} ? $dirty{$field} : '');
+        }
     }
   }
 
