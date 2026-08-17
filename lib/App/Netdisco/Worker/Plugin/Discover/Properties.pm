@@ -222,7 +222,7 @@ register_worker({ phase => 'early', driver => 'snmp',
     if (scalar @changed) {
         vars->{'device_changed'} = 1;
         foreach my $field (@changed) {
-            debug sprintf ' [%s] hooks - device field %s changed: "%s" -> "%s"',
+            warning sprintf ' [%s] hooks - device field %s changed: "%s" -> "%s"',
               $device->ip, $field,
               (defined $orig_device->{$field} ? $orig_device->{$field} : ''),
               (defined $dirty{$field} ? $dirty{$field} : '');
@@ -581,7 +581,7 @@ register_worker({ phase => 'early', driver => 'snmp',
 
     if (join("\0", sort keys %existing_ports) ne join("\0", sort keys %deviceports)) {
         vars->{'device_changed'} = 1;
-        debug sprintf ' [%s] hooks - port set changed: had [%s], now [%s]',
+        warning sprintf ' [%s] hooks - port set changed: had [%s], now [%s]',
           $device->ip, (join ', ', sort keys %existing_ports),
                        (join ', ', sort keys %deviceports);
     }
@@ -599,7 +599,7 @@ register_worker({ phase => 'early', driver => 'snmp',
                 }
                 next if $oldval eq $newval;
                 vars->{'device_changed'} = 1;
-                debug sprintf ' [%s] hooks - port %s field %s changed: "%s" -> "%s"',
+                warning sprintf ' [%s] hooks - port %s field %s changed: "%s" -> "%s"',
                   $device->ip, $port, $field, $oldval, $newval;
                 last PORTDIFF;
             }
