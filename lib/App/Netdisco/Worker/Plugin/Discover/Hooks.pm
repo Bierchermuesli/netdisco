@@ -34,7 +34,7 @@ register_worker({ phase => 'late' }, sub {
       debug sprintf ' [%s] hooks - %s queued', 'discover', $job->device;
     }
     elsif ($conf->{'event'} eq 'discover') {
-      debug sprintf ' [%s] hooks - discover skipped (no meaningful change)', $job->device;
+      warning sprintf ' [%s] hooks - discover skipped (no meaningful change)', $job->device;
     }
   }
 
