@@ -217,7 +217,16 @@ register_worker({ phase => 'early', driver => 'snmp',
     my $ignore = (setting('hook_ignore_changes') || {})->{'device'} || [];
     my %ignore_field = map {($_ => 1)} @$ignore;
     my %dirty = $device->get_dirty_columns;
-    my @changed = sort grep {not $ignore_field{$_}} keys %dirty;
+    # DBIC's dirty flag latches true on the first set_column() that differs
+    # and is never cleared by a later set_column() call, even one that lands
+    # back on the original value (model/vendor are set multiple times per
+    # job via the enterprise/product lookup fallbacks above) - so also
+    # require the final value to actually differ from what was loaded.
+    my @changed = sort grep {
+        not $ignore_field{$_}
+        and (defined $orig_device->{$_} ? $orig_device->{$_} : '') ne
+            (defined $dirty{$_}         ? $dirty{$_}         : '')
+    } keys %dirty;
 
     if (scalar @changed) {
         vars->{'device_changed'} = 1;
