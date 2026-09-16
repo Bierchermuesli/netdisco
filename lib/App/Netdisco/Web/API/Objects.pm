@@ -19,6 +19,45 @@ sub _bool_param {
   return ($val =~ m/^(?:1|y|yes|t|true|on)$/i) ? 1 : 0;
 }
 
+# Node relations a caller may pull in alongside the node rows themselves.
+# The value says whether the relation yields a list. "oui" is deliberately
+# absent: Node has both a column and a relation of that name, and the
+# accessor collision is exactly what the TO_JSON override in
+# App::Netdisco::DB::Result guards against.
+my %NODE_INCLUDES = (
+  wireless     => 1, # node_wireless - SSID, signal, rates
+  ips          => 1, # node_ip
+  netbios      => 0, # node_nbt
+  manufacturer => 0, # vendor looked up from the OUI
+);
+
+sub _node_includes {
+  my $val = shift;
+  return () unless defined $val and length $val;
+  my @asked = grep { length } map { s/^\s+|\s+$//gr } split /,/, $val;
+  if (my @bad = grep { ! exists $NODE_INCLUDES{$_} } @asked) {
+    send_error((sprintf 'Bad include "%s". Valid: %s',
+      (join ',', @bad), (join ',', sort keys %NODE_INCLUDES)), 400);
+  }
+  return @asked;
+}
+
+# TO_JSON returns own columns only, so fold in the requested relations here
+sub _node_to_json {
+  my ($row, @includes) = @_;
+  my $data = $row->TO_JSON;
+  foreach my $rel (@includes) {
+    if ($NODE_INCLUDES{$rel}) {
+      $data->{$rel} = [ map { $_->TO_JSON } $row->$rel->all ];
+    }
+    else {
+      my $one = $row->$rel;
+      $data->{$rel} = $one ? $one->TO_JSON : undef;
+    }
+  }
+  return $data;
+}
+
 swagger_path {
   tags => ['Objects'],
   path => (setting('api_base') || '').'/object/device/{ip}',
@@ -294,14 +333,21 @@ swagger_path {
       default => 'true',
       in => 'query',
     },
+    include => {
+      description => 'Comma-separated list of related rows to embed in each Node: wireless (node_wireless - SSID, signal, rates), ips (node_ip), netbios (node_nbt), manufacturer (vendor from the OUI). Omitted by default.',
+      type => 'string',
+      in => 'query',
+    },
   ],
   responses => { default => {} },
 }, get '/api/v1/object/device/:ip/nodes' => require_role api => sub {
   my $active = _bool_param(params->{active_only}, 1);
+  my @includes = _node_includes(params->{include});
   my $rows = try { schema(vars->{'tenant'})->resultset('Node')
-    ->search({ switch => params->{ip}, ($active ? (-bool => 'active') : ()) }) }
+    ->search({ switch => params->{ip}, ($active ? (-bool => 'active') : ()) },
+      (@includes ? { prefetch => [@includes] } : ())) }
     or send_error('Bad Device', 404);
-  return to_json [ map {$_->TO_JSON} $rows->all ];
+  return to_json [ map { _node_to_json($_, @includes) } $rows->all ];
 };
 
 swagger_path {
@@ -369,14 +415,21 @@ swagger_path {
       default => 'true',
       in => 'query',
     },
+    include => {
+      description => 'Comma-separated list of related rows to embed in each Node: wireless (node_wireless - SSID, signal, rates), ips (node_ip), netbios (node_nbt), manufacturer (vendor from the OUI). Omitted by default.',
+      type => 'string',
+      in => 'query',
+    },
   ],
   responses => { default => {} },
 }, get '/api/v1/object/vlan/:vlan/nodes' => require_role api => sub {
   my $active = _bool_param(params->{active_only}, 1);
+  my @includes = _node_includes(params->{include});
   my $rows = try { schema(vars->{'tenant'})->resultset('Node')
-    ->search({ vlan => params->{vlan}, ($active ? (-bool => 'active') : ()) }) }
+    ->search({ vlan => params->{vlan}, ($active ? (-bool => 'active') : ()) },
+      (@includes ? { prefetch => [@includes] } : ())) }
     or send_error('Bad VLAN', 404);
-  return to_json [ map {$_->TO_JSON} $rows->all ];
+  return to_json [ map { _node_to_json($_, @includes) } $rows->all ];
 };
 
 swagger_path {
