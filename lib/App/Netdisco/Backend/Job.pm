@@ -3,7 +3,7 @@ package App::Netdisco::Backend::Job;
 use Dancer qw/:moose :syntax !error !params/;
 use aliased 'App::Netdisco::Worker::Status';
 
-use App::Netdisco::Util::Configuration 'parse_params_to_config';
+use App::Netdisco::Util::Configuration 'parse_params_and_config';
 
 use Moo;
 use Term::ANSIColor qw(:constants :constants256);
@@ -42,6 +42,11 @@ has '_statuslist' => (
   default => sub { [] },
 );
 
+has '_config_overrides' => (
+  is => 'rw',
+  default => sub { [] },
+);
+
 around BUILDARGS => sub {
   my ( $orig, $class, @arguments ) = @_;
   my $args = $arguments[0];
@@ -52,11 +57,19 @@ around BUILDARGS => sub {
       $args->{only_namespace} = $2;
   }
 
-  $args->{port} = parse_params_to_config($args->{port})
-    if defined $args->{port};
-  $args->{subaction} = parse_params_to_config($args->{subaction})
-    if defined $args->{subaction}
-       and ($args->{action} and $args->{action} !~ m/^(?:hook|cf_)/);
+  # a queued job is built in the manager but run in a poller, so its
+  # configuration overrides are kept on the job and applied by the Runner
+  my @overrides = ();
+  if (defined $args->{port}) {
+      ($args->{port}, my $found) = parse_params_and_config($args->{port});
+      push @overrides, @$found;
+  }
+  if (defined $args->{subaction}
+      and ($args->{action} and $args->{action} !~ m/^(?:hook|cf_)/)) {
+      ($args->{subaction}, my $found) = parse_params_and_config($args->{subaction});
+      push @overrides, @$found;
+  }
+  $args->{_config_overrides} = \@overrides;
 
   $args->{subaction} = q{}
     if ! defined $args->{subaction};

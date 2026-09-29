@@ -4,6 +4,7 @@ use Dancer qw/:moose :syntax/;
 use Dancer::Plugin::DBIC 'schema';
 
 use App::Netdisco::Util::CustomFields;
+use App::Netdisco::Util::Configuration 'apply_config_overrides';
 use App::Netdisco::Transport::Python ();
 use App::Netdisco::Util::Device 'get_device';
 use App::Netdisco::Util::Permission qw/acl_matches acl_matches_only/;
@@ -29,6 +30,18 @@ sub run {
   die 'cannot reuse a worker' if $self->job;
   die 'bad job to run()'
     unless ref $job eq 'App::Netdisco::Backend::Job';
+
+  # the job's configuration overrides are applied here, where it runs, and
+  # not when it was built, which for a queued job is in the manager. They
+  # wrap the whole run, so the device_auth guard below restores its value
+  # before these restore theirs, and an overridden device_auth does not
+  # outlive the job in a process that runs more than one, like netdisco-do.
+  my $configguard = apply_config_overrides($job->_config_overrides);
+  return $self->_run_job($job);
+}
+
+sub _run_job {
+  my ($self, $job) = @_;
 
   $self->job($job);
   $job->device( get_device($job->device) )

@@ -5,6 +5,7 @@ use Dancer::Plugin::DBIC 'schema';
 
 use Hash::Merge::Simple;
 use MIME::Base64 'decode_base64';
+use Scope::Guard 'guard';
 use Storable 'dclone';
 use Try::Tiny;
 
@@ -14,6 +15,8 @@ our @EXPORT_OK = qw/
   refresh_managed_acl
   load_acls_from_database
   parse_params_to_config
+  parse_params_and_config
+  apply_config_overrides
 /;
 our %EXPORT_TAGS = (all => \@EXPORT_OK);
 
@@ -155,7 +158,32 @@ to return, it returns that, otherwise returns undef.
 =cut
 
 sub parse_params_to_config {
+  my ($residual, $overrides) = parse_params_and_config(shift);
+  merge_into_configuration($_) for @$overrides;
+  return $residual;
+}
+
+=head1 parse_params_and_config
+
+As C<parse_params_to_config> but applies nothing. Returns the residual value
+and a list reference of the configuration overrides found, in the order they
+should be applied.
+
+=cut
+
+# A job is built in the backend manager and run in a poller, which is a
+# different process, so the overrides have to travel with the job and be
+# applied where it runs. Applying them while parsing changed only the
+# manager's configuration, and did so for good.
+sub parse_params_and_config {
   my $orig_value = shift;
+  my @overrides = ();
+  my $residual = _parse_params($orig_value, \@overrides);
+  return ($residual, \@overrides);
+}
+
+sub _parse_params {
+  my ($orig_value, $overrides) = @_;
   return undef unless defined $orig_value;
 
   # value via "schedule:" deployment.yml would already be a Perl struct
@@ -192,7 +220,7 @@ sub parse_params_to_config {
           # try to decode base64
           my $decoded = try { from_json(decode_base64($value)) }; # might explode
           if (defined $decoded and ref {} eq ref $decoded) {
-              return parse_params_to_config($decoded);
+              return _parse_params($decoded, $overrides);
           }
           # some other use of subaction (file ref, log comment, etc)
           else {
@@ -213,11 +241,11 @@ sub parse_params_to_config {
 
   $value = $value->{'with'} if exists $value->{'with'};
   if (ref $value eq ref {}) {
-      merge_into_configuration($value);
+      push @$overrides, $value;
   }
   else {
       # we can recurse to decode a stringified JSON 'with'
-      parse_params_to_config($value);
+      _parse_params($value, $overrides);
   }
 
   return $actual_value;
@@ -239,6 +267,32 @@ sub parse_config_string_to_dict {
   }
 
   return $dict;
+}
+
+=head1 apply_config_overrides( \@overrides )
+
+Merges each override into configuration, and returns a guard which puts back
+the settings they touched when it goes out of scope.
+
+=cut
+
+sub apply_config_overrides {
+  my $overrides = shift || [];
+  my $config = config();
+
+  # merge_into_configuration builds a new value for each key it touches and
+  # leaves the old one alone, so holding the old reference is enough
+  my %saved = map { ($_ => [exists $config->{$_}, $config->{$_}]) }
+              map { keys %$_ } @$overrides;
+
+  merge_into_configuration($_) for @$overrides;
+
+  return guard {
+    foreach my $key (keys %saved) {
+      if ($saved{$key}->[0]) { set($key => $saved{$key}->[1]) }
+      else { delete $config->{$key} }
+    }
+  };
 }
 
 sub merge_into_configuration {
