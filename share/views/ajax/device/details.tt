@@ -136,6 +136,16 @@
       <td>SNMP Class</td>
       <td><a target="_blank" href="https://metacpan.org/pod/[% d.snmp_class | uri %]">[% d.snmp_class | html_entity %]</a></td>
     </tr>
+    [% IF auth_tags AND (auth_tags.snmp_auth_tag_read OR auth_tags.snmp_auth_tag_write) AND user_has_role('admin') %]
+    <tr>
+      <td>SNMP Auth Tag</td>
+      <td>[% auth_tags.snmp_auth_tag_read | html_entity %]
+        [% IF auth_tags.snmp_auth_tag_write AND auth_tags.snmp_auth_tag_write != auth_tags.snmp_auth_tag_read %]
+        (write: [% auth_tags.snmp_auth_tag_write | html_entity %])
+        [% END %]
+      </td>
+    </tr>
+    [% END %]
     <tr>
       <td>Uptime</td>
       <td>[% d.uptime_age | html_entity %][% ' at last poll' IF d.uptime_age %]</td>

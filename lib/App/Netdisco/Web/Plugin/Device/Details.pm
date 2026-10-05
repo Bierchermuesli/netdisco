@@ -42,9 +42,18 @@ ajax '/ajax/content/device/details' => require_login sub {
     # filter the tags by hide_tags setting
     my @hide = @{ setting('hide_tags')->{'device'} };
 
+    # which device_auth stanza the device last answered to, for admins only.
+    # The community table also holds the write community, so ask for the tag
+    # columns by name and never the whole row.
+    my $auth_tags = (user_has_role('admin')
+      ? schema(vars->{'tenant'})->resultset('Community')->search(
+          { ip => $device->ip },
+          { columns => [qw/snmp_auth_tag_read snmp_auth_tag_write/] })->hri->first
+      : undef);
+
     content_type('text/html');
     template 'ajax/device/details.tt', {
-      d => $results[0], p => \@power,
+      d => $results[0], p => \@power, auth_tags => $auth_tags,
       interfaces => \@interfaces,
       has_snapshot =>
         $device->oids->search({-bool => \q{ jsonb_typeof(value) = 'array' }})->count,
