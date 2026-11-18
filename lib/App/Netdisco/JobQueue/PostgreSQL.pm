@@ -180,10 +180,13 @@ sub jq_lock {
   return true unless $job->id;
   my $happy = false;
 
-  # lock db row and update to show job has been picked
+  # lock db row and update to show job has been picked. backend => undef:
+  # managers that read the same job in jq_getsome all reach this update, and
+  # each would claim it and run it once the earlier one committed
   try {
     my $updated = schema(vars->{'tenant'})->resultset('Admin')
-      ->search({ job => $job->id, status => 'queued' }, { for => 'update' })
+      ->search({ job => $job->id, status => 'queued', backend => undef },
+               { for => 'update' })
       ->update({
           status  => 'queued',
           backend => setting('workers')->{'BACKEND'},
