@@ -13,7 +13,8 @@ use Try::Tiny;
 use Module::Load ();
 use NetAddr::IP::Lite ':lower';
 use List::Util qw/pairkeys pairfirst/;
-use Scalar::Util 'blessed';
+use Scalar::Util qw/blessed refaddr/;
+use Sys::SigAction ();
 
 use base 'Dancer::Object::Singleton';
 
@@ -339,6 +340,11 @@ sub _try_connect {
   }
   catch {
       my $ex = $_;
+      # the job timeout (Sys::SigAction's empty hashref) must reach the
+      # Runner as it is: turned into a string here, the job carried on with
+      # no timeout left and tried every device_auth stanza again for an hour
+      die $ex if ref $ex and refaddr($ex) == refaddr(Sys::SigAction::TIMEDOUT());
+
       my $err = !defined $ex ? '(undef)'
                        : !ref $ex ? do { (my $e = "$ex") =~ s/ at \S+ line \d+.*//s; $e }
                        : (blessed $ex && $ex->can('message')) ? $ex->message

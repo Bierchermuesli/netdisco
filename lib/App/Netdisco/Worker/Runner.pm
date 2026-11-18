@@ -15,6 +15,7 @@ use Time::HiRes ();
 use Module::Load ();
 use Scope::Guard 'guard';
 use Storable 'dclone';
+use Scalar::Util 'refaddr';
 use Sys::SigAction 'timeout_call';
 
 use Moo::Role;
@@ -127,6 +128,10 @@ sub run_workers {
   foreach my $worker (@{ $self->$set }) {
     try { $job->add_status( $worker->($job) ) }
     catch {
+      # the job timeout ends the job; recorded as one worker's error, the
+      # next workers would run on with no timeout left
+      die $_ if ref $_ and refaddr($_) == refaddr(Sys::SigAction::TIMEDOUT());
+
       # stringify: DBIx::Class dies with an object, and jq_complete stores
       # the job's log only when it is a plain string
       my $error = "$_";
